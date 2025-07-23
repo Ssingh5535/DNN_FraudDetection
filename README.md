@@ -85,6 +85,38 @@ The pipeline ingests transaction data, preprocesses features, trains and tunes m
 - Optimized decision threshold using precision-recall analysis (final threshold ≈0.61).
 - Final ensemble performance: F1 ≈0.848, ROC AUC ≈0.9762.
 
+
+### Model Definition
+
+## DNN Pipeline (Level 2–3)
+
+This section walks through how we built, trained, and served our custom PyTorch‐based DNN.
+
+### 1. Train/Test Split
+
+We reserve 30 % of the data for testing, stratified on the fraud label to preserve class balance:
+
+```python
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.3,
+    stratify=y,
+    random_state=42
+)
+```
+
+
+
+| Model                               | Precision | Recall | F₁‑Score | ROC AUC |
+| ----------------------------------- | :-------: | :----: | :------: | :-----: |
+| **Standalone DNN**                  |   0.587   |  0.818 |   0.684  |  0.9709 |
+| **DNN (with Weighted Sampler)**     |   0.540   |  0.824 |   0.652  |  0.9756 |
+| **Random Forest (w=0 blend)**       |   0.913   |  0.784 |   0.844  |  0.9376 |
+| **Simple‑Average Ensemble (50/50)** |   0.914   |  0.791 |   0.848  |  0.9762 |
+
+
 ---
 
 ## Serving & Containerization (Level 3)
