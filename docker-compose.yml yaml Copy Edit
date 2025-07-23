@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  fraud-api:
+    build:
+      context: .               # assumes Dockerfile in repo root
+    image: fraud-ensemble-api:latest
+    container_name: fraud-api
+    ports:
+      - "8000:80"              # host:container
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - fraud-api
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: secret
+    depends_on:
+      - prometheus
