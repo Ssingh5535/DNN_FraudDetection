@@ -5,11 +5,22 @@ import numpy as np
 import torch
 import torch.nn as nn
 import pandas as pd
+import time
 
 from fastapi import FastAPI, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from typing import List
+from prometheus_client import (
+    Counter,
+    Histogram,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
 
+# ==============================================================================
+# 1. Define your DNN architecture
+# ==============================================================================
 
 class FraudNet(nn.Module):
 
@@ -37,31 +48,70 @@ class FraudNet(nn.Module):
         return self.net(x)
 
 
-MODEL_DIR = os.getenv("MODEL_DIR", "model")
+# ==============================================================================
+# 2. Load artifacts
+# ==============================================================================
 
+MODEL_DIR = os.getenv("MODEL_DIR", "model")
 
 with open(os.path.join(MODEL_DIR, "scaler_final.pkl"), "rb") as f:
     scaler = pickle.load(f)
 
-
 rf = joblib.load(os.path.join(MODEL_DIR, "rf_model.pkl"))
-
 
 device = torch.device("cpu")
 dnn = FraudNet().to(device)
 dnn.load_state_dict(
     torch.load(
-        os.path.join(MODEL_DIR, "dnn_model_final.pt"), map_location=device
+        os.path.join(MODEL_DIR, "dnn_model_final.pt"),
+        map_location=device,
     )
 )
 dnn.eval()
 
-
-with open(
-    os.path.join(MODEL_DIR, "threshold_final.pkl"), "rb"
-) as f:
+with open(os.path.join(MODEL_DIR, "threshold_final.pkl"), "rb") as f:
     THRESHOLD = pickle.load(f)
 
+
+# ==============================================================================
+# 3. Prometheus metrics
+# ==============================================================================
+
+REQUEST_COUNT = Counter(
+    "fraud_api_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "http_status"],
+)
+REQUEST_LATENCY = Histogram(
+    "fraud_api_request_latency_seconds",
+    "HTTP request latency",
+    ["method", "endpoint"],
+)
+SCORE_HIST = Histogram(
+    "fraud_api_predicted_score",
+    "Predicted fraud probability distribution",
+)
+
+
+# ==============================================================================
+# 4. FastAPI setup
+# ==============================================================================
+
+app = FastAPI(title="Fraud Detection Ensemble API")
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+    """
+    Expose Prometheus metrics.
+    """
+    data = generate_latest()
+    return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+
+
+# ==============================================================================
+# 5. Preprocessing & scoring
+# ==============================================================================
 
 def preprocess(df: pd.DataFrame) -> np.ndarray:
     df = df.copy()
@@ -79,6 +129,10 @@ def ensemble_score(X_raw: np.ndarray) -> np.ndarray:
 
     return 0.5 * p_rf + 0.5 * p_dnn
 
+
+# ==============================================================================
+# 6. Pydantic models
+# ==============================================================================
 
 class Transaction(BaseModel):
 
@@ -118,15 +172,27 @@ class TxBatch(BaseModel):
     transactions: List[Transaction] = Field(..., min_items=1)
 
 
-app = FastAPI(title="Fraud Detection Ensemble API")
-
+# ==============================================================================
+# 7. Prediction endpoint with metrics
+# ==============================================================================
 
 @app.post("/predict")
 async def predict(batch: TxBatch, request: Request) -> dict:
+    start = time.time()
+
     df = pd.DataFrame([t.dict() for t in batch.transactions])
     X_raw = preprocess(df)
     probs = ensemble_score(X_raw)
     preds = (probs > THRESHOLD).tolist()
+
+    # record score distribution
+    for p in probs:
+        SCORE_HIST.observe(p)
+
+    # record latency and count
+    latency = time.time() - start
+    REQUEST_LATENCY.labels(request.method, request.url.path).observe(latency)
+    REQUEST_COUNT.labels(request.method, request.url.path, "200").inc()
 
     return {
         "predictions": preds,
