@@ -11,10 +11,16 @@ from fastapi import FastAPI, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from typing import List
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import (
+    Counter,
+    Histogram,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
 
 
 class FraudNet(nn.Module):
+
     def __init__(
         self,
         input_dim: int = 30,
@@ -24,12 +30,14 @@ class FraudNet(nn.Module):
     ):
         super().__init__()
         layers = []
+
         for i in range(n_layers):
             in_dim = input_dim if i == 0 else hidden_size
             layers.append(nn.Linear(in_dim, hidden_size))
             layers.append(nn.BatchNorm1d(hidden_size))
             layers.append(nn.ReLU())
             layers.append(nn.Dropout(dropout_rate))
+
         layers.append(nn.Linear(hidden_size, 1))
         self.net = nn.Sequential(*layers)
 
@@ -60,16 +68,16 @@ with open(os.path.join(MODEL_DIR, "threshold_final.pkl"), "rb") as f:
 REQUEST_COUNT = Counter(
     "fraud_api_requests_total",
     "Total HTTP requests",
-    ["method", "endpoint", "http_status"]
+    ["method", "endpoint", "http_status"],
 )
 REQUEST_LATENCY = Histogram(
     "fraud_api_request_latency_seconds",
     "HTTP request latency",
-    ["method", "endpoint"]
+    ["method", "endpoint"],
 )
 SCORE_HIST = Histogram(
     "fraud_api_predicted_score",
-    "Predicted fraud probability distribution"
+    "Predicted fraud probability distribution",
 )
 
 app = FastAPI(title="Fraud Detection Ensemble API")
@@ -139,13 +147,21 @@ class TxBatch(BaseModel):
 @app.post("/predict")
 async def predict(batch: TxBatch, request: Request) -> dict:
     start = time.time()
+
     df = pd.DataFrame([t.dict() for t in batch.transactions])
     X_raw = preprocess(df)
     probs = ensemble_score(X_raw)
     preds = (probs > THRESHOLD).tolist()
+
     for p in probs:
         SCORE_HIST.observe(p)
+
     latency = time.time() - start
     REQUEST_LATENCY.labels(request.method, request.url.path).observe(latency)
     REQUEST_COUNT.labels(request.method, request.url.path, "200").inc()
-    return {"predictions": preds, "probabilities": probs.tolist(), "threshold": THRESHOLD}
+
+    return {
+        "predictions": preds,
+        "probabilities": probs.tolist(),
+        "threshold": THRESHOLD,
+    }
