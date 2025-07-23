@@ -6,14 +6,10 @@ import torch
 import torch.nn as nn
 import pandas as pd
 
-from fastapi import FastAPI
-from fastapi import Response, Request
+from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 from typing import List
 
-# ==============================================================================
-# 1. Define your DNN architecture
-# ==============================================================================
 
 class FraudNet(nn.Module):
 
@@ -41,10 +37,6 @@ class FraudNet(nn.Module):
         return self.net(x)
 
 
-# ==============================================================================
-# 2. Load artifacts
-# ==============================================================================
-
 MODEL_DIR = os.getenv("MODEL_DIR", "model")
 
 
@@ -59,35 +51,26 @@ device = torch.device("cpu")
 dnn = FraudNet().to(device)
 dnn.load_state_dict(
     torch.load(
-        os.path.join(MODEL_DIR, "dnn_model_final.pt"),
-        map_location=device,
+        os.path.join(MODEL_DIR, "dnn_model_final.pt"), map_location=device
     )
 )
 dnn.eval()
 
 
-with open(os.path.join(MODEL_DIR, "threshold_final.pkl"), "rb") as f:
+with open(
+    os.path.join(MODEL_DIR, "threshold_final.pkl"), "rb"
+) as f:
     THRESHOLD = pickle.load(f)
 
-
-# ==============================================================================
-# 3. Preprocessing function
-# ==============================================================================
 
 def preprocess(df: pd.DataFrame) -> np.ndarray:
     df = df.copy()
     df["LogAmount"] = np.log1p(df["Amount"])
-    # drop only Time; keep V1–V28, Amount, LogAmount
     return df.drop(["Time"], axis=1).values
 
 
-# ==============================================================================
-# 4. Ensemble scoring helper
-# ==============================================================================
-
 def ensemble_score(X_raw: np.ndarray) -> np.ndarray:
     X = scaler.transform(X_raw)
-
     p_rf = rf.predict_proba(X)[:, 1]
 
     with torch.no_grad():
@@ -97,11 +80,8 @@ def ensemble_score(X_raw: np.ndarray) -> np.ndarray:
     return 0.5 * p_rf + 0.5 * p_dnn
 
 
-# ==============================================================================
-# 5. Pydantic models
-# ==============================================================================
-
 class Transaction(BaseModel):
+
     V1: float
     V2: float
     V3: float
@@ -137,10 +117,6 @@ class Transaction(BaseModel):
 class TxBatch(BaseModel):
     transactions: List[Transaction] = Field(..., min_items=1)
 
-
-# ==============================================================================
-# 6. FastAPI setup
-# ==============================================================================
 
 app = FastAPI(title="Fraud Detection Ensemble API")
 
