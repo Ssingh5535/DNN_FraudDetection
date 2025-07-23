@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+scikit-learn
+torch
+joblib
+pickle-mixin  # or just use built-in pickle
