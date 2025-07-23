@@ -195,19 +195,15 @@ docker-compose up --build
 
 ## Images
 
-![Docker Container](Images/docker-container.png)
+![Docker Container](Images/DockerContainer.png)
 ### Serving & Containerization (Level 3)
 
 Below is the Docker‑Compose stack bringing up all three services:
 
-![Docker containers running](Images/docker-container.png)
+![Docker containers running](Images/DockerImageBuild.png)
 
 And here’s the live Swagger UI for my `/predict` endpoint:
 
-![Swagger UI success](Images/swagger-success.png)
+![Swagger UI success](Images/SucessSwagger.png)
 
-### CI/CD Pipeline (Level 4)
 
-Every push to `main` now triggers lint, test, build, and push:
-
-![GitHub Actions build-and-push success](Images/ci-pipeline.png)
