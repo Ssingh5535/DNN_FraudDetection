@@ -3,7 +3,6 @@
 import os
 import sys
 
-# Ensure the parent directory (where app.py lives) is on the import path
 sys.path.insert(
     0,
     os.path.abspath(
@@ -11,8 +10,8 @@ sys.path.insert(
     )
 )
 
-from fastapi.testclient import TestClient
-from app import app
+from fastapi.testclient import TestClient  # noqa: E402
+from app import app  # noqa: E402
 
 
 client = TestClient(app)
@@ -32,13 +31,34 @@ def test_predict_smoke():
     sample = {
         "transactions": [
             {
-                "V1": 0.0,  "V2": 0.0,  "V3": 0.0,  "V4": 0.0,
-                "V5": 0.0,  "V6": 0.0,  "V7": 0.0,  "V8": 0.0,
-                "V9": 0.0,  "V10": 0.0, "V11": 0.0, "V12": 0.0,
-                "V13": 0.0, "V14": 0.0, "V15": 0.0, "V16": 0.0,
-                "V17": 0.0, "V18": 0.0, "V19": 0.0, "V20": 0.0,
-                "V21": 0.0, "V22": 0.0, "V23": 0.0, "V24": 0.0,
-                "V25": 0.0, "V26": 0.0, "V27": 0.0, "V28": 0.0,
+                "V1": 0.0,
+                "V2": 0.0,
+                "V3": 0.0,
+                "V4": 0.0,
+                "V5": 0.0,
+                "V6": 0.0,
+                "V7": 0.0,
+                "V8": 0.0,
+                "V9": 0.0,
+                "V10": 0.0,
+                "V11": 0.0,
+                "V12": 0.0,
+                "V13": 0.0,
+                "V14": 0.0,
+                "V15": 0.0,
+                "V16": 0.0,
+                "V17": 0.0,
+                "V18": 0.0,
+                "V19": 0.0,
+                "V20": 0.0,
+                "V21": 0.0,
+                "V22": 0.0,
+                "V23": 0.0,
+                "V24": 0.0,
+                "V25": 0.0,
+                "V26": 0.0,
+                "V27": 0.0,
+                "V28": 0.0,
                 "Amount": 0.0,
                 "Time": 0.0,
             }
