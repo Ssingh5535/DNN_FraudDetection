@@ -89,7 +89,7 @@ The pipeline ingests transaction data, preprocesses features, trains and tunes m
 
 Below is the confusion matrix for our 50/50 ensemble model on the held‑out test set:
 
-![Confusion Matrix of 50/50 Ensemble Model](images/Confusion.png)
+![Confusion Matrix of 50/50 Ensemble Model](Images/Confusion.png)
 
 
 - **True Negatives (TN) = 85,191**  
