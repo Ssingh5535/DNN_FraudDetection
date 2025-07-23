@@ -18,9 +18,6 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
 )
 
-# ==============================================================================
-# 1. Define your DNN architecture
-# ==============================================================================
 
 class FraudNet(nn.Module):
 
@@ -48,16 +45,15 @@ class FraudNet(nn.Module):
         return self.net(x)
 
 
-# ==============================================================================
-# 2. Load artifacts
-# ==============================================================================
-
 MODEL_DIR = os.getenv("MODEL_DIR", "model")
+
 
 with open(os.path.join(MODEL_DIR, "scaler_final.pkl"), "rb") as f:
     scaler = pickle.load(f)
 
+
 rf = joblib.load(os.path.join(MODEL_DIR, "rf_model.pkl"))
+
 
 device = torch.device("cpu")
 dnn = FraudNet().to(device)
@@ -69,33 +65,30 @@ dnn.load_state_dict(
 )
 dnn.eval()
 
-with open(os.path.join(MODEL_DIR, "threshold_final.pkl"), "rb") as f:
+
+with open(
+    os.path.join(MODEL_DIR, "threshold_final.pkl"), "rb"
+) as f:
     THRESHOLD = pickle.load(f)
 
-
-# ==============================================================================
-# 3. Prometheus metrics
-# ==============================================================================
 
 REQUEST_COUNT = Counter(
     "fraud_api_requests_total",
     "Total HTTP requests",
     ["method", "endpoint", "http_status"],
 )
+
 REQUEST_LATENCY = Histogram(
     "fraud_api_request_latency_seconds",
     "HTTP request latency",
     ["method", "endpoint"],
 )
+
 SCORE_HIST = Histogram(
     "fraud_api_predicted_score",
     "Predicted fraud probability distribution",
 )
 
-
-# ==============================================================================
-# 4. FastAPI setup
-# ==============================================================================
 
 app = FastAPI(title="Fraud Detection Ensemble API")
 
@@ -109,14 +102,12 @@ def metrics() -> Response:
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
 
-# ==============================================================================
-# 5. Preprocessing & scoring
-# ==============================================================================
 
 def preprocess(df: pd.DataFrame) -> np.ndarray:
     df = df.copy()
     df["LogAmount"] = np.log1p(df["Amount"])
     return df.drop(["Time"], axis=1).values
+
 
 
 def ensemble_score(X_raw: np.ndarray) -> np.ndarray:
@@ -129,10 +120,6 @@ def ensemble_score(X_raw: np.ndarray) -> np.ndarray:
 
     return 0.5 * p_rf + 0.5 * p_dnn
 
-
-# ==============================================================================
-# 6. Pydantic models
-# ==============================================================================
 
 class Transaction(BaseModel):
 
@@ -172,9 +159,6 @@ class TxBatch(BaseModel):
     transactions: List[Transaction] = Field(..., min_items=1)
 
 
-# ==============================================================================
-# 7. Prediction endpoint with metrics
-# ==============================================================================
 
 @app.post("/predict")
 async def predict(batch: TxBatch, request: Request) -> dict:
@@ -185,11 +169,9 @@ async def predict(batch: TxBatch, request: Request) -> dict:
     probs = ensemble_score(X_raw)
     preds = (probs > THRESHOLD).tolist()
 
-    # record score distribution
     for p in probs:
         SCORE_HIST.observe(p)
 
-    # record latency and count
     latency = time.time() - start
     REQUEST_LATENCY.labels(request.method, request.url.path).observe(latency)
     REQUEST_COUNT.labels(request.method, request.url.path, "200").inc()
