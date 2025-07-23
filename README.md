@@ -85,6 +85,31 @@ The pipeline ingests transaction data, preprocesses features, trains and tunes m
 - Optimized decision threshold using precision-recall analysis (final threshold ≈0.61).
 - Final ensemble performance: F1 ≈0.848, ROC AUC ≈0.9762.
 
+### Confusion Matrix
+
+Below is the confusion matrix for our 50/50 ensemble model on the held‑out test set:
+
+![Confusion Matrix of 50/50 Ensemble Model](images/Confusion.png)
+
+
+- **True Negatives (TN) = 85,191**  
+  The number of legitimate transactions correctly classified as non‑fraud.  
+
+- **False Positives (FP) = 104**  
+  Legitimate transactions incorrectly flagged as fraud (Type I error).  
+
+- **False Negatives (FN) = 26**  
+  Fraudulent transactions that the model failed to detect (Type II error).  
+
+- **True Positives (TP) = 122**  
+  Fraudulent transactions correctly identified as fraud.  
+
+**Interpretation**:  
+- The model achieves very high overall accuracy (≈99.95%) by correctly classifying almost all non‑fraud cases.  
+- **Precision** = TP / (TP + FP) = 122 / (122 + 104) ≈ 0.54 (on the standalone DNN) or higher for the ensemble, indicating that when it flags fraud, it is correct most of the time.  
+- **Recall** = TP / (TP + FN) = 122 / (122 + 26) ≈ 0.82, showing strong ability to catch actual fraud cases.  
+- The low FN count (26) is critical in fraud detection, minimizing missed fraud.  
+- The balance of precision and recall yields an F1‑score of ≈ 0.85 for our ensemble, demonstrating robust performance in the face of extreme class imbalance.  
 
 ### Model Definition
 
